@@ -38,6 +38,15 @@ pub fn build(b: *std.Build) void {
     const install_step = b.getInstallStep();
     install_step.dependOn(&make_dirs.step);
 
+    // Add bun install step to ensure dependencies are installed
+    const bun_install_cmd = if (builtin.os.tag == .windows)
+        &[_][]const u8{ "cmd", "/c", "bun", "install" }
+    else
+        &[_][]const u8{ "bun", "install" };
+
+    const install_deps = b.addSystemCommand(bun_install_cmd);
+    install_deps.step.dependOn(&make_dirs.step);
+
     // Add TypeScript build step using Bun
     const bun_build_cmd = if (builtin.os.tag == .windows)
         &[_][]const u8{ "cmd", "/c", "bun", "run", "build" }
@@ -45,7 +54,7 @@ pub fn build(b: *std.Build) void {
         &[_][]const u8{ "bun", "run", "build" };
 
     const build_ts = b.addSystemCommand(bun_build_cmd);
-    build_ts.step.dependOn(&make_dirs.step);
+    build_ts.step.dependOn(&install_deps.step);
 
     // Create a step to copy the WASM file to the dist directory
     const copy_wasm = b.addInstallFile(exe.getEmittedBin(), "../dist/towerd.wasm");
